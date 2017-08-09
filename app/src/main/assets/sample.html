@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+
+    <script>
+    $(function () {
+
+        function handleFileSelect(event) {
+            var files = event.target.files;
+
+            for (var i = 0, f; f = files[i]; i++) {
+                console.log(f);
+
+                if (!f.type.match('image.*')) {
+                    continue;
+                }
+
+                var reader = new FileReader();
+
+                reader.onload = (function (file) {
+                    return function (event) {
+                        // サムネイル用のimgタグ
+                        var $html = ['<img class="photo" src="', event.target.result, '" title="', escape(file.name), '">'].join('');
+
+                        // サムネイルタグを生成
+                        $('output').append($html);
+                    };
+                })(f);
+
+                // データURLにエンコードした内容を格納
+                reader.readAsDataURL(f);
+            }
+        }
+
+
+        // --------------------------------------------------------
+        // Ready時実行
+        // --------------------------------------------------------
+        // File APIのサポートチェックし、ボタンを押した時に実行
+        if (window.File && window.FileReader && window.FileList && window.Blob) {
+            $('#files').on('change', handleFileSelect);
+        } else {
+            alert('お使いのブラウザはサポートしておりません');
+        }
+
+
+    });
+
+    </script>
+</head>
+
+<body>
+<input type="file" id="files" name="files[]" accept="audio/*,video/*,image/*" multiple>
+<output></output>
+</body>
+
+</html>
