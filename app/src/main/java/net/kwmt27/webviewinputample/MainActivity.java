@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
             case FileChooserWebChromeClient.INPUT_FILE_REQUEST_CODE:
                 webChromeClient.cleanUpOnBackFromFileChooser(this, resultCode, intent);
             default:
-                Log.d("", "default");
+                Log.d("", "requestCode:" + requestCode + ", resultCode:" + resultCode);
         }
     }
 
