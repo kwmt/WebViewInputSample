@@ -83,7 +83,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
     /**
      * カメラやギャラリーから戻ってきたときの処理 (onActivityResultで呼ぶ)
      */
-    public void cleanupOnBackFromFileChooser(Context context, int resultCode, Intent intent) {
+    public void cleanUpOnBackFromFileChooser(Context context, int resultCode, Intent intent) {
         if (filePathCallback == null) {
             return;
         }

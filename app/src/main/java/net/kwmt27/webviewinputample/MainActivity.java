@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         switch (requestCode) {
             case FileChooserWebChromeClient.INPUT_FILE_REQUEST_CODE:
-                webChromeClient.cleanupOnBackFromFileChooser(this, resultCode, intent);
+                webChromeClient.cleanUpOnBackFromFileChooser(this, resultCode, intent);
             default:
                 Log.d("", "default");
         }
