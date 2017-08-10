@@ -53,6 +53,9 @@ public class FileChooserWebChromeClient extends WebChromeClient {
     }
 
     private boolean hasPermissions(Context context, String... permissions) {
+        if (context == null || permissions == null) {
+            throw new IllegalArgumentException("パーミッションチェックには、Contextとチェックしたいpermissionが必要です");
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && context != null && permissions != null) {
             for (String permission : permissions) {
                 if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
