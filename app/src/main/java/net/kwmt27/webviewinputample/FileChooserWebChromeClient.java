@@ -36,6 +36,15 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             String[] PERMISSIONS = {android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, android.Manifest.permission.CAMERA};
             if (!hasPermissions(webView.getContext(), PERMISSIONS)) {
                 ActivityCompat.requestPermissions((Activity) (webView.getContext()), PERMISSIONS, REQUEST_CAMERA_PERMISSION);
+
+                // onShowFileChooser
+                // https://developer.android.com/reference/android/webkit/WebChromeClient.html#onShowFileChooser(android.webkit.WebView, android.webkit.ValueCallback<android.net.Uri[]>, android.webkit.WebChromeClient.FileChooserParams)
+                // パーミッション要求を許可した場合は
+                // this.cleanUpOnBackFromFileChooserで filePathCallback.onReceiveValue を読んでいる
+                // (流れ: Activity.onRequestPermissionsResult -> this.openCameraGalleryChooser -> Activity.onActivityResult -> this.cleanUpOnBackFromFileChooser)
+                // パーミッション要求を拒否した場合
+                // this.callOnReceiveValue で filePathCallback.onReceiveValueを読んでいる
+                // (流れ: Activity.onRequestPermissionsResult で許可チェック -> webChromeClient.callOnReceiveValue)
                 return true;
             }
         }
@@ -118,6 +127,11 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         filePathCallback = null;
         photoFileUri = null;
     }
+
+    public void callOnReceiveValue(Uri[] uris) {
+        filePathCallback.onReceiveValue(uris);
+    }
+
 
 
     private static class CameraUtil {

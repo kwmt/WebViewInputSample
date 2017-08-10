@@ -43,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
                     webChromeClient.openCameraGalleryChooser(this);
                     return;
                 }
+                // パーミッション要求を拒否した場合
+                webChromeClient.callOnReceiveValue(null);
                 Toast.makeText(this, "エラー", Toast.LENGTH_LONG).show();
 
             }
