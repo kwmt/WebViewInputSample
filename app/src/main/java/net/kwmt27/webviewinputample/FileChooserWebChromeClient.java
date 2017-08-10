@@ -10,12 +10,18 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
+
+import java.io.File;
+import java.io.IOException;
 
 
 public class FileChooserWebChromeClient extends WebChromeClient {
@@ -24,7 +30,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
     public static final int INPUT_FILE_REQUEST_CODE = 2;
 
 
-    private Uri photoFileUri;
+    private String photoFileUri;
     private ValueCallback<Uri[]> filePathCallback;
     private FileChooserParams fileChooserParams;
 
@@ -73,8 +79,20 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         // カメラ
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (takePictureIntent.resolveActivity(activity.getPackageManager()) != null) {
-            photoFileUri = CameraUtil.createPhotoFileUri(activity);
-            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoFileUri);
+            // 参考
+            // https://akira-watson.com/android/camera-intent.html
+            // https://inthecheesefactory.com/blog/how-to-share-access-to-file-with-fileprovider-on-android-nougat
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                Log.w("",ex.getStackTrace().toString());
+            }
+
+            if (photoFile != null) {
+                Uri photoUri = FileProvider.getUriForFile(activity, BuildConfig.APPLICATION_ID +".provider", photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+            }
         }
         // ギャラリー
         Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -96,16 +114,16 @@ public class FileChooserWebChromeClient extends WebChromeClient {
      * カメラやギャラリーから戻ってきたときの処理 (onActivityResultで呼ぶ)
      */
     public void cleanUpOnBackFromFileChooser(Context context, int resultCode, Intent intent) {
-        if (filePathCallback == null) {
+        if (resultCode != Activity.RESULT_OK || filePathCallback == null) {
             return;
         }
-        if (resultCode != Activity.RESULT_OK) {
-            if (photoFileUri != null) {
-                context.getContentResolver().delete(photoFileUri, null, null);
-                filePathCallback.onReceiveValue(null);
-                filePathCallback = null;
-                photoFileUri = null;
-            }
+
+        if (photoFileUri != null) {
+            // カメラで撮影した場合
+            Uri uri = registerContentResolver(context, photoFileUri );
+            filePathCallback.onReceiveValue(new Uri[]{uri});
+            filePathCallback = null;
+            photoFileUri = null;
             return;
         }
 
@@ -126,31 +144,35 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             } else if (onlyOneSelectedImageUri != null) {
                 filePathCallback.onReceiveValue(new Uri[]{onlyOneSelectedImageUri});
             } else {
-                // カメラで撮影した場合
-                filePathCallback.onReceiveValue(new Uri[]{photoFileUri});
+                filePathCallback.onReceiveValue(null);
             }
         } else {
             filePathCallback.onReceiveValue(null);
         }
         filePathCallback = null;
-        photoFileUri = null;
+
     }
 
     public void callOnReceiveValue(Uri[] uris) {
         filePathCallback.onReceiveValue(uris);
     }
 
-
-
-    private static class CameraUtil {
-        static Uri createPhotoFileUri(Context context) {
-            // カメラで撮影
-            String filename = System.currentTimeMillis() + ".jpg";
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Images.Media.TITLE, filename);
-            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-            return context.getContentResolver()
-                    .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-        }
+    private File createImageFile() throws IOException {
+        long timeStamp = System.currentTimeMillis();
+        String imageFileName = "JPEG_" + timeStamp;
+        File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
+        File image = File.createTempFile(imageFileName,".jpg", storageDir);
+        photoFileUri = image.getAbsolutePath();
+        return image;
     }
+
+    private Uri registerContentResolver(Context context, String filePath) {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DATA, filePath);
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        return context.getContentResolver()
+                .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+    }
+
 }
