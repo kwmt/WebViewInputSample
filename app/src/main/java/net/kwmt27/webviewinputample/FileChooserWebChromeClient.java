@@ -111,15 +111,20 @@ public class FileChooserWebChromeClient extends WebChromeClient {
 
         if (intent != null) {
             // ギャラリーで選択した場合
-            // 画像が1つでも複数でもclipDataは null にならない
-            ClipData clipData = intent.getClipData();
-            if (clipData != null) {
-                final int selectedFilesCount = clipData.getItemCount();
+            // 画像を1枚選択した場合、intent.getData()に選択した画像のURIが入ってくる
+            Uri onlyOneSelectedImageUri = intent.getData();
+            // 画像を複数枚選択した場合(複数枚選択モード時)、intent.getClipData()に複数枚選択した画像のURIが入ってくる
+            ClipData multipleSelectedImageUriData = intent.getClipData();
+            // 複数枚選択した場合、intent.getData()に画像URIが入ってくるので、先にintent.getClipData()を判定している
+            if (multipleSelectedImageUriData != null) {
+                final int selectedFilesCount = multipleSelectedImageUriData.getItemCount();
                 Uri[] results = new Uri[selectedFilesCount];
                 for (int i = 0; i < selectedFilesCount; i++) {
-                    results[i] = clipData.getItemAt(i).getUri();
+                    results[i] = multipleSelectedImageUriData.getItemAt(i).getUri();
                 }
                 filePathCallback.onReceiveValue(results);
+            } else if (onlyOneSelectedImageUri != null) {
+                filePathCallback.onReceiveValue(new Uri[]{onlyOneSelectedImageUri});
             } else {
                 // カメラで撮影した場合
                 filePathCallback.onReceiveValue(new Uri[]{photoFileUri});
