@@ -10,12 +10,18 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
+
+import java.io.File;
+import java.io.IOException;
 
 
 public class FileChooserWebChromeClient extends WebChromeClient {
@@ -24,7 +30,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
     public static final int INPUT_FILE_REQUEST_CODE = 2;
 
 
-    private Uri photoFileUri;
+    private File photoFile;
     private ValueCallback<Uri[]> filePathCallback;
     private FileChooserParams fileChooserParams;
 
@@ -36,6 +42,15 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             String[] PERMISSIONS = {android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, android.Manifest.permission.CAMERA};
             if (!hasPermissions(webView.getContext(), PERMISSIONS)) {
                 ActivityCompat.requestPermissions((Activity) (webView.getContext()), PERMISSIONS, REQUEST_CAMERA_PERMISSION);
+
+                // onShowFileChooser
+                // https://developer.android.com/reference/android/webkit/WebChromeClient.html#onShowFileChooser(android.webkit.WebView, android.webkit.ValueCallback<android.net.Uri[]>, android.webkit.WebChromeClient.FileChooserParams)
+                // パーミッション要求を許可した場合は
+                // this.cleanUpOnBackFromFileChooserで filePathCallback.onReceiveValue を読んでいる
+                // (流れ: Activity.onRequestPermissionsResult -> this.openCameraGalleryChooser -> Activity.onActivityResult -> this.cleanUpOnBackFromFileChooser)
+                // パーミッション要求を拒否した場合
+                // this.callOnReceiveValue で filePathCallback.onReceiveValueを読んでいる
+                // (流れ: Activity.onRequestPermissionsResult で許可チェック -> webChromeClient.callOnReceiveValue)
                 return true;
             }
         }
@@ -44,7 +59,10 @@ public class FileChooserWebChromeClient extends WebChromeClient {
     }
 
     private boolean hasPermissions(Context context, String... permissions) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && context != null && permissions != null) {
+        if (context == null || permissions == null) {
+            throw new IllegalArgumentException("パーミッションチェックには、Contextとチェックしたいpermissionが必要です");
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             for (String permission : permissions) {
                 if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
                     return false;
@@ -61,8 +79,19 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         // カメラ
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (takePictureIntent.resolveActivity(activity.getPackageManager()) != null) {
-            photoFileUri = CameraUtil.createPhotoFileUri(activity);
-            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoFileUri);
+            // 参考
+            // https://akira-watson.com/android/camera-intent.html
+            // https://inthecheesefactory.com/blog/how-to-share-access-to-file-with-fileprovider-on-android-nougat
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                Log.w("",ex.getStackTrace().toString());
+            }
+
+            if (photoFile != null) {
+                Uri photoUri = FileProvider.getUriForFile(activity, BuildConfig.APPLICATION_ID +".provider", photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+            }
         }
         // ギャラリー
         Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -83,52 +112,61 @@ public class FileChooserWebChromeClient extends WebChromeClient {
     /**
      * カメラやギャラリーから戻ってきたときの処理 (onActivityResultで呼ぶ)
      */
-    public void cleanupOnBackFromFileChooser(Context context, int resultCode, Intent intent) {
-        if (filePathCallback == null) {
-            return;
-        }
-        if (resultCode != Activity.RESULT_OK) {
-            if (photoFileUri != null) {
-                context.getContentResolver().delete(photoFileUri, null, null);
-                filePathCallback.onReceiveValue(null);
-                filePathCallback = null;
-                photoFileUri = null;
-            }
+    public void cleanUpOnBackFromFileChooser(Context context, int resultCode, Intent intent) {
+        if (resultCode != Activity.RESULT_OK || filePathCallback == null) {
             return;
         }
 
         if (intent != null) {
             // ギャラリーで選択した場合
-            // 画像が1つでも複数でもclipDataは null にならない
-            ClipData clipData = intent.getClipData();
-            if (clipData != null) {
-                final int selectedFilesCount = clipData.getItemCount();
+            // 画像を1枚選択した場合、intent.getData()に選択した画像のURIが入ってくる
+            Uri onlyOneSelectedImageUri = intent.getData();
+            // 画像を複数枚選択した場合(複数枚選択モード時)、intent.getClipData()に複数枚選択した画像のURIが入ってくる
+            ClipData multipleSelectedImageUriData = intent.getClipData();
+            // 複数枚選択した場合、intent.getData()に画像URIが入ってくるので、先にintent.getClipData()を判定している
+            if (multipleSelectedImageUriData != null) {
+                final int selectedFilesCount = multipleSelectedImageUriData.getItemCount();
                 Uri[] results = new Uri[selectedFilesCount];
                 for (int i = 0; i < selectedFilesCount; i++) {
-                    results[i] = clipData.getItemAt(i).getUri();
+                    results[i] = multipleSelectedImageUriData.getItemAt(i).getUri();
                 }
                 filePathCallback.onReceiveValue(results);
+            } else if (onlyOneSelectedImageUri != null) {
+                filePathCallback.onReceiveValue(new Uri[]{onlyOneSelectedImageUri});
             } else {
-                // カメラで撮影した場合
-                filePathCallback.onReceiveValue(new Uri[]{photoFileUri});
+                if (photoFile != null) {
+                    // カメラで撮影した場合
+                    Uri uri = registerContentResolver(context, photoFile.getAbsolutePath());
+                    filePathCallback.onReceiveValue(new Uri[]{uri});
+                    photoFile = null;
+                } else {
+                    filePathCallback.onReceiveValue(null);
+                }
             }
         } else {
             filePathCallback.onReceiveValue(null);
         }
         filePathCallback = null;
-        photoFileUri = null;
     }
 
-
-    private static class CameraUtil {
-        static Uri createPhotoFileUri(Context context) {
-            // カメラで撮影
-            String filename = System.currentTimeMillis() + ".jpg";
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Images.Media.TITLE, filename);
-            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-            return context.getContentResolver()
-                    .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-        }
+    public void callOnReceiveValue(Uri[] uris) {
+        filePathCallback.onReceiveValue(uris);
     }
+
+    private File createImageFile() throws IOException {
+        long timeStamp = System.currentTimeMillis();
+        String imageFileName = "JPEG_" + timeStamp;
+        File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
+        return File.createTempFile(imageFileName,".jpg", storageDir);
+    }
+
+    private Uri registerContentResolver(Context context, String filePath) {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DATA, filePath);
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        return context.getContentResolver()
+                .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+    }
+
 }

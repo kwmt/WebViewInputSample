@@ -43,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
                     webChromeClient.openCameraGalleryChooser(this);
                     return;
                 }
+                // パーミッション要求を拒否した場合
+                webChromeClient.callOnReceiveValue(null);
                 Toast.makeText(this, "エラー", Toast.LENGTH_LONG).show();
 
             }
@@ -53,9 +55,9 @@ public class MainActivity extends AppCompatActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         switch (requestCode) {
             case FileChooserWebChromeClient.INPUT_FILE_REQUEST_CODE:
-                webChromeClient.cleanupOnBackFromFileChooser(this, resultCode, intent);
+                webChromeClient.cleanUpOnBackFromFileChooser(this, resultCode, intent);
             default:
-                Log.d("", "default");
+                Log.d("", "requestCode:" + requestCode + ", resultCode:" + resultCode);
         }
     }
 
