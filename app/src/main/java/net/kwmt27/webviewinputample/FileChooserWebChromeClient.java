@@ -30,7 +30,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
     public static final int INPUT_FILE_REQUEST_CODE = 2;
 
 
-    private String photoFileUri;
+    private File photoFile;
     private ValueCallback<Uri[]> filePathCallback;
     private FileChooserParams fileChooserParams;
 
@@ -82,7 +82,6 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             // 参考
             // https://akira-watson.com/android/camera-intent.html
             // https://inthecheesefactory.com/blog/how-to-share-access-to-file-with-fileprovider-on-android-nougat
-            File photoFile = null;
             try {
                 photoFile = createImageFile();
             } catch (IOException ex) {
@@ -118,15 +117,6 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             return;
         }
 
-        if (photoFileUri != null) {
-            // カメラで撮影した場合
-            Uri uri = registerContentResolver(context, photoFileUri );
-            filePathCallback.onReceiveValue(new Uri[]{uri});
-            filePathCallback = null;
-            photoFileUri = null;
-            return;
-        }
-
         if (intent != null) {
             // ギャラリーで選択した場合
             // 画像を1枚選択した場合、intent.getData()に選択した画像のURIが入ってくる
@@ -144,13 +134,19 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             } else if (onlyOneSelectedImageUri != null) {
                 filePathCallback.onReceiveValue(new Uri[]{onlyOneSelectedImageUri});
             } else {
-                filePathCallback.onReceiveValue(null);
+                if (photoFile != null) {
+                    // カメラで撮影した場合
+                    Uri uri = registerContentResolver(context, photoFile.getAbsolutePath());
+                    filePathCallback.onReceiveValue(new Uri[]{uri});
+                    photoFile = null;
+                } else {
+                    filePathCallback.onReceiveValue(null);
+                }
             }
         } else {
             filePathCallback.onReceiveValue(null);
         }
         filePathCallback = null;
-
     }
 
     public void callOnReceiveValue(Uri[] uris) {
@@ -161,9 +157,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         long timeStamp = System.currentTimeMillis();
         String imageFileName = "JPEG_" + timeStamp;
         File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
-        File image = File.createTempFile(imageFileName,".jpg", storageDir);
-        photoFileUri = image.getAbsolutePath();
-        return image;
+        return File.createTempFile(imageFileName,".jpg", storageDir);
     }
 
     private Uri registerContentResolver(Context context, String filePath) {
