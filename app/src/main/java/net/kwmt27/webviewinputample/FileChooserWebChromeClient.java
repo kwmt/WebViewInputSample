@@ -38,7 +38,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         this.filePathCallback = filePathCallback;
         this.fileChooserParams = fileChooserParams;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String[] PERMISSIONS = {android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, android.Manifest.permission.CAMERA};
+            String[] PERMISSIONS = {android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
             if (!hasPermissions(webView.getContext(), PERMISSIONS)) {
                 ActivityCompat.requestPermissions((Activity) (webView.getContext()), PERMISSIONS, REQUEST_CAMERA_PERMISSION);
 
