@@ -88,7 +88,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             }
 
             if (photoFile != null) {
-                Uri photoUri = FileProvider.getUriForFile(activity, BuildConfig.APPLICATION_ID + ".provider", photoFile);
+                Uri photoUri = getPhotoUri(activity, photoFile);
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
             }
         }
@@ -117,6 +117,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         }
         if (resultCode != Activity.RESULT_OK) {
             // 画像選択をキャンセルした場合
+            deletePhotoFile(context);
             filePathCallback.onReceiveValue(null);
             return;
         }
@@ -144,6 +145,18 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             receivePhotoFileForCamera(context);
         }
         filePathCallback = null;
+    }
+
+    /**
+     * ファイルが作成されていたら、削除する
+     * @param context
+     */
+    public void deletePhotoFile(Context context) {
+        // createImageFileした後に、deleteされる場合があるので、ContentResolverに登録されているかどうかによって制御する
+        if(photoFile != null) {
+            context.getContentResolver().delete(getPhotoUri(context, photoFile), null, null);
+            photoFile = null;
+        }
     }
 
     public void callOnReceiveValue(Uri[] uris) {
@@ -178,5 +191,9 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         return false;
     }
 
+
+    private Uri getPhotoUri(Context context, File file) {
+        return FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".provider", file);
+    }
 
 }
