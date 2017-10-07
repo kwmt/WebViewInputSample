@@ -138,17 +138,11 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             } else if (onlyOneSelectedImageUri != null) {
                 filePathCallback.onReceiveValue(new Uri[]{onlyOneSelectedImageUri});
             } else {
-                if (photoFile != null) {
-                    // カメラで撮影した場合
-                    Uri uri = registerContentResolver(context, photoFile.getAbsolutePath());
-                    filePathCallback.onReceiveValue(new Uri[]{uri});
-                    photoFile = null;
-                } else {
-                    filePathCallback.onReceiveValue(null);
-                }
+                receivePhotoFileForCamera(context);
             }
         } else {
-            filePathCallback.onReceiveValue(null);
+            // https://stackoverflow.com/questions/12564112/android-camera-onactivityresult-intent-is-null-if-it-had-extras
+            receivePhotoFileForCamera(context);
         }
         filePathCallback = null;
     }
@@ -172,5 +166,18 @@ public class FileChooserWebChromeClient extends WebChromeClient {
                 .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
 
     }
+
+    private boolean receivePhotoFileForCamera(Context context) {
+        if (photoFile != null) {
+            // カメラで撮影した場合
+            Uri uri = registerContentResolver(context, photoFile.getAbsolutePath());
+            filePathCallback.onReceiveValue(new Uri[]{uri});
+            photoFile = null;
+            return true;
+        }
+        filePathCallback.onReceiveValue(null);
+        return false;
+    }
+
 
 }
