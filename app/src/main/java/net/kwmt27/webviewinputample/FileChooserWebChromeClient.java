@@ -15,7 +15,6 @@ import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
@@ -39,7 +38,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         this.filePathCallback = filePathCallback;
         this.fileChooserParams = fileChooserParams;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String[] PERMISSIONS = {android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, android.Manifest.permission.CAMERA};
+            String[] PERMISSIONS = {android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
             if (!hasPermissions(webView.getContext(), PERMISSIONS)) {
                 ActivityCompat.requestPermissions((Activity) (webView.getContext()), PERMISSIONS, REQUEST_CAMERA_PERMISSION);
 
@@ -85,11 +84,11 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             try {
                 photoFile = createImageFile();
             } catch (IOException ex) {
-                Log.w("",ex.getStackTrace().toString());
+                ex.printStackTrace();
             }
 
             if (photoFile != null) {
-                Uri photoUri = FileProvider.getUriForFile(activity, BuildConfig.APPLICATION_ID +".provider", photoFile);
+                Uri photoUri = getPhotoUri(activity, photoFile);
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
             }
         }
@@ -113,10 +112,15 @@ public class FileChooserWebChromeClient extends WebChromeClient {
      * カメラやギャラリーから戻ってきたときの処理 (onActivityResultで呼ぶ)
      */
     public void cleanUpOnBackFromFileChooser(Context context, int resultCode, Intent intent) {
-        if (resultCode != Activity.RESULT_OK || filePathCallback == null) {
+        if (filePathCallback == null) {
             return;
         }
-
+        if (resultCode != Activity.RESULT_OK) {
+            // 画像選択をキャンセルした場合
+            deletePhotoFile(context);
+            filePathCallback.onReceiveValue(null);
+            return;
+        }
         if (intent != null) {
             // ギャラリーで選択した場合
             // 画像を1枚選択した場合、intent.getData()に選択した画像のURIが入ってくる
@@ -134,19 +138,25 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             } else if (onlyOneSelectedImageUri != null) {
                 filePathCallback.onReceiveValue(new Uri[]{onlyOneSelectedImageUri});
             } else {
-                if (photoFile != null) {
-                    // カメラで撮影した場合
-                    Uri uri = registerContentResolver(context, photoFile.getAbsolutePath());
-                    filePathCallback.onReceiveValue(new Uri[]{uri});
-                    photoFile = null;
-                } else {
-                    filePathCallback.onReceiveValue(null);
-                }
+                receivePhotoFileForCamera(context);
             }
         } else {
-            filePathCallback.onReceiveValue(null);
+            // https://stackoverflow.com/questions/12564112/android-camera-onactivityresult-intent-is-null-if-it-had-extras
+            receivePhotoFileForCamera(context);
         }
         filePathCallback = null;
+    }
+
+    /**
+     * ファイルが作成されていたら、削除する
+     * @param context
+     */
+    public void deletePhotoFile(Context context) {
+        // createImageFileした後に、deleteされる場合があるので、ContentResolverに登録されているかどうかによって制御する
+        if(photoFile != null) {
+            context.getContentResolver().delete(getPhotoUri(context, photoFile), null, null);
+            photoFile = null;
+        }
     }
 
     public void callOnReceiveValue(Uri[] uris) {
@@ -157,7 +167,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         long timeStamp = System.currentTimeMillis();
         String imageFileName = "JPEG_" + timeStamp;
         File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
-        return File.createTempFile(imageFileName,".jpg", storageDir);
+        return File.createTempFile(imageFileName, ".jpg", storageDir);
     }
 
     private Uri registerContentResolver(Context context, String filePath) {
@@ -167,6 +177,23 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         return context.getContentResolver()
                 .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
 
+    }
+
+    private boolean receivePhotoFileForCamera(Context context) {
+        if (photoFile != null) {
+            // カメラで撮影した場合
+            Uri uri = registerContentResolver(context, photoFile.getAbsolutePath());
+            filePathCallback.onReceiveValue(new Uri[]{uri});
+            photoFile = null;
+            return true;
+        }
+        filePathCallback.onReceiveValue(null);
+        return false;
+    }
+
+
+    private Uri getPhotoUri(Context context, File file) {
+        return FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".provider", file);
     }
 
 }
