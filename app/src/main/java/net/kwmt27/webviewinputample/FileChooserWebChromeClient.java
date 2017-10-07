@@ -15,7 +15,6 @@ import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
@@ -85,11 +84,11 @@ public class FileChooserWebChromeClient extends WebChromeClient {
             try {
                 photoFile = createImageFile();
             } catch (IOException ex) {
-                Log.w("",ex.getStackTrace().toString());
+                ex.printStackTrace();
             }
 
             if (photoFile != null) {
-                Uri photoUri = FileProvider.getUriForFile(activity, BuildConfig.APPLICATION_ID +".provider", photoFile);
+                Uri photoUri = FileProvider.getUriForFile(activity, BuildConfig.APPLICATION_ID + ".provider", photoFile);
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
             }
         }
@@ -155,7 +154,7 @@ public class FileChooserWebChromeClient extends WebChromeClient {
         long timeStamp = System.currentTimeMillis();
         String imageFileName = "JPEG_" + timeStamp;
         File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
-        return File.createTempFile(imageFileName,".jpg", storageDir);
+        return File.createTempFile(imageFileName, ".jpg", storageDir);
     }
 
     private Uri registerContentResolver(Context context, String filePath) {
