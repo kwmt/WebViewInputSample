@@ -113,10 +113,14 @@ public class FileChooserWebChromeClient extends WebChromeClient {
      * カメラやギャラリーから戻ってきたときの処理 (onActivityResultで呼ぶ)
      */
     public void cleanUpOnBackFromFileChooser(Context context, int resultCode, Intent intent) {
-        if (resultCode != Activity.RESULT_OK || filePathCallback == null) {
+        if (filePathCallback == null) {
             return;
         }
-
+        if (resultCode != Activity.RESULT_OK) {
+            // 画像選択をキャンセルした場合
+            filePathCallback.onReceiveValue(null);
+            return;
+        }
         if (intent != null) {
             // ギャラリーで選択した場合
             // 画像を1枚選択した場合、intent.getData()に選択した画像のURIが入ってくる
