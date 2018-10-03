@@ -92,20 +92,20 @@ public class FileChooserWebChromeClient extends WebChromeClient {
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
             }
         }
-        // ギャラリー
-        Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
-        contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
-        // 複数mimetype設定
-        // https://stackoverflow.com/a/42582490
-        contentSelectionIntent.setType("*/*");
-        contentSelectionIntent.putExtra(Intent.EXTRA_MIME_TYPES, fileChooserParams.getAcceptTypes());
-        contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, fileChooserParams.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE);
+//        // ギャラリー
+//        Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+//        contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+//        // 複数mimetype設定
+//        // https://stackoverflow.com/a/42582490
+//        contentSelectionIntent.setType("*/*");
+//        contentSelectionIntent.putExtra(Intent.EXTRA_MIME_TYPES, fileChooserParams.getAcceptTypes());
+//        contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, fileChooserParams.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE);
+//
+//        Intent chooserIntent = Intent.createChooser(contentSelectionIntent, "pick image");
+//        Intent[] intentArray = new Intent[]{takePictureIntent};
+//        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
 
-        Intent chooserIntent = Intent.createChooser(contentSelectionIntent, "pick image");
-        Intent[] intentArray = new Intent[]{takePictureIntent};
-        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
-
-        activity.startActivityForResult(chooserIntent, INPUT_FILE_REQUEST_CODE);
+        activity.startActivityForResult(takePictureIntent, INPUT_FILE_REQUEST_CODE);
     }
 
     /**

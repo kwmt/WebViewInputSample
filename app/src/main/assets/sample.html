@@ -24,7 +24,7 @@
                 reader.onload = (function (file) {
                     return function (event) {
                         // サムネイル用のimgタグ
-                        var $html = ['<img class="photo" src="', event.target.result, '" title="', escape(file.name), '">'].join('');
+                        var $html = ['<img class="photo" width="300" src="', event.target.result, '" title="', escape(file.name), '">'].join('');
 
                         // サムネイルタグを生成
                         $('output').append($html);
